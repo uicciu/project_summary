@@ -231,5 +231,5 @@ __m128i result = _mm_clmulepi64_si128(Xi, H, 0x00); // GF(2^128)乘法
    原始   T-Table   AES-NI   VPROLD  GCM
 ```
 
-## 6. 项目目录
+## 6. 目录结构
 
