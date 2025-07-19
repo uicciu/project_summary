@@ -33,25 +33,33 @@ SM4 是国家商用密码标准，采用 **32 轮 Feistel 结构**，块长和�
 
 ### 2.1 轮函数定义
 SM4 的核心加密轮函数：
-\[
+
+$$
 X_{i+4} = X_i \oplus T(X_{i+1} \oplus X_{i+2} \oplus X_{i+3} \oplus rk_i)
-\]
+$$
 
-其中，非线性变换 \( T \) 定义为：
-\[
+
+其中，非线性变换 $T$ 定义为：
+
+$$
 T(B) = L(\tau(B))
-\]
+$$
 
-- **τ：字节代换**  
-\[
+- **τ：字节代换**
+
+$$
 \tau(B) = (S(b_0), S(b_1), S(b_2), S(b_3))
-\]
+$$
 
-- **L：线性变换**  
-\[
+- **L：线性变换**
+
+$$
 L(B) = B \oplus (B \lll 2) \oplus (B \lll 10) \oplus (B \lll 18) \oplus (B \lll 24)
-\]  
-\( \lll \) 表示 **循环左移**。
+$$
+
+
+
+$\lll$ 表示 **循环左移**。
 
 ---
 
@@ -59,14 +67,16 @@ L(B) = B \oplus (B \lll 2) \oplus (B \lll 10) \oplus (B \lll 18) \oplus (B \lll 
 
 ### 3.1 基于 T-Table 的优化
 **思想**：将 **S-box 替换 + 线性变换** 预计算成 4 张查表，每张 256 项，每项 32 位。
-\[
+
+$$
 T_i[x] = L(\text{S-box}(x) \ll (8 \times i)), \quad i=0,1,2,3
-\]
+$$
 
 优化后每轮：
-\[
+
+$$
 T(B) = T_0[b_0] \oplus T_1[b_1] \oplus T_2[b_2] \oplus T_3[b_3]
-\]
+$$
 
 **性能提升**：约 **2.5-3x**。
 
@@ -80,6 +90,7 @@ AES-NI 提供 `_mm_aesenclast_si128`，用于实现 S-box。
 3. 每次 SIMD 并行处理 16 字节。
 
 示例代码：
+
 ```c
 __m128i x = _mm_set_epi32(...);
 __m128i sbox_result = _mm_aesenclast_si128(x, _mm_setzero_si128());
@@ -90,11 +101,13 @@ __m128i sbox_result = _mm_aesenclast_si128(x, _mm_setzero_si128());
 ### 3.3 基于 VPROLD 指令的优化
 
 **问题分析**  
-SM4 的线性变换 \( L(B) \) 需要执行多次循环左移和异或操作：
-\[
+SM4 的线性变换 $L(B)$ 需要执行多次循环左移和异或操作：
+
+$$
 L(B) = B \oplus (B \lll 2) \oplus (B \lll 10) \oplus (B \lll 18) \oplus (B \lll 24)
-\]
-其中 \( \lll \) 表示循环左移。
+$$
+
+其中 $\lll$ 表示循环左移。
 
 在传统实现中，这会导致每轮执行多个 `ROTL` 操作，增加了运算延迟。
 
@@ -116,6 +129,7 @@ L(B) = B \oplus (B \lll 2) \oplus (B \lll 10) \oplus (B \lll 18) \oplus (B \lll 
 ---
 
 **示例代码**
+
 ```c
 #include <immintrin.h>
 
@@ -145,32 +159,38 @@ GCM 的核心运算分为两部分：
 ### 4.1 GCM 模式数学描述
 
 设：
-- \( P = \{ P_1, P_2, \dots, P_n \} \) 为明文块（每块 128-bit）
-- \( C = \{ C_1, C_2, \dots, C_n \} \) 为密文块
-- \( H = E_K(0^{128}) \)，SM4 加密的全零块
-- \( A \) 为附加认证数据（AAD）
+- $P = \{ P_1, P_2, \dots, P_n \}$ 为明文块（每块 128-bit）
+- $C = \{ C_1, C_2, \dots, C_n \}$ 为密文块
+- $H = E_K(0^{128})$，SM4 加密的全零块
+- $A$ 为附加认证数据（AAD）
 
 #### **加密过程 (CTR 模式)**
 对于每个数据块：
-\[
+
+$$
 C_i = P_i \oplus E_K(\text{IV} || \text{counter}_i)
-\]
+$$
+
 其中：
-\[
+
+$$
 \text{counter}_i = \text{ICB} + i \pmod{2^{32}}
-\]
+$$
 
 #### **认证过程 (GHASH)**
 计算认证标签 Tag：
-\[
+
+$$
 \text{Tag} = \text{GHASH}(H, A, C) \oplus E_K(\text{IV})
-\]
+$$
 
 其中 GHASH 定义为：
-\[
+
+$$
 Y_0 = 0, \quad Y_i = (Y_{i-1} \oplus X_i) \cdot H
-\]
-\( X_i \) 表示拼接后的 AAD 和密文块，乘法在 GF(2^{128}) 上进行。
+$$
+
+$X_i$ 表示拼接后的 AAD 和密文块，乘法在 GF(2^{128}) 上进行。
 
 ---
 
