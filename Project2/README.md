@@ -379,8 +379,8 @@ def batch_embed(host_dir, wm_path, out_dir, alpha=0.05):
 | 裁剪      | crop\_ratio=0.1    | 裁剪边缘后缩放回原尺寸          |
 | 旋转      | deg=±5°, ±15°      | 小角度编辑                |
 | 缩放重采样   | scale=0.5→resize   | 上传压缩                 |
-| 亮度调整    | beta               | I' = I + beta        |
-| 对比度调整   | alpha              | I' = alpha\*I + beta |
+| 亮度调整    | $\beta$               | I' = I + $\beta$        |
+| 对比度调整   | $\alpha$              | I' = $\alpha$\*I + beta |
 | 高斯噪声    | σ=5,10,20          | 噪声攻击                 |
 | JPEG 压缩 | quality=90→30      | 有损平台分发               |
 
