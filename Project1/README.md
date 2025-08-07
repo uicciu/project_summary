@@ -272,4 +272,20 @@ __m128i result = _mm_clmulepi64_si128(Xi, H, 0x00); // GF(2^128)乘法
 
 ## 6. 目录结构
 
-
+```
+Project1:
+|   README.md
+|
++---assets
+|       GCM.png
+|       sm4AESIN.png
+|       sm4T.png
+|       vprold.png
+|
+\---src
+        SM4.cpp
+        SM4_AES.cpp
+        SM4_GCM.cpp
+        SM4_T.cpp
+        SM4_VPROLD.cpp
+```
