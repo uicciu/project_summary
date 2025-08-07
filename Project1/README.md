@@ -77,6 +77,11 @@ $$
 T(B) = T_0[b_0] \oplus T_1[b_1] \oplus T_2[b_2] \oplus T_3[b_3]
 $$
 
+
+**结果展示**：
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project1/sm4T.png)
+
 **性能提升**：约 **2.5-3x**。
 
 ---
