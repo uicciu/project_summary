@@ -139,16 +139,15 @@ $$
 **示例代码**
 
 ```c
-#include <immintrin.h>
-
-// 基于 AVX-512 的 L 变换实现
-static inline __m512i sm4_linear_transform(__m512i x) {
-    __m512i rot2  = _mm512_rol_epi32(x, 2);
-    __m512i rot10 = _mm512_rol_epi32(x, 10);
-    __m512i rot18 = _mm512_rol_epi32(x, 18);
-    __m512i rot24 = _mm512_rol_epi32(x, 24);
-    return _mm512_xor_si512(x, _mm512_xor_si512(rot2,
-           _mm512_xor_si512(rot10, _mm512_xor_si512(rot18, rot24))));
+inline __m512i L(__m512i x) {
+    auto r2  = _mm512_rol_epi32(x, 2);
+    auto r10 = _mm512_rol_epi32(x, 10);
+    auto r18 = _mm512_rol_epi32(x, 18);
+    auto r24 = _mm512_rol_epi32(x, 24);
+    return _mm512_xor_si512(x,
+           _mm512_xor_si512(r2,
+           _mm512_xor_si512(r10,
+           _mm512_xor_si512(r18, r24))));
 }
 ```
 
