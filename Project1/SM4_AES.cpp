@@ -1,0 +1,209 @@
+#include <cstdint>
+#include <cstring>
+#include <immintrin.h>
+#include <iostream>
+#include <chrono>
+
+// S-Box（原始SM4 S-box，示意未完整）
+static const uint8_t SBOX[256] = {
+    0xd6, 0x90, 0xe9, 0xfe, 0xcc, 0xe1, 0x3d, 0xb7,
+    0x16, 0xb6, 0x14, 0xc2, 0x28, 0xfb, 0x2c, 0x05,
+    0x2b, 0x67, 0x9a, 0x76, 0x2a, 0xbe, 0x04, 0xc3,
+    0xaa, 0x44, 0x13, 0x26, 0x49, 0x86, 0x06, 0x99,
+    0x9c, 0x42, 0x50, 0xf4, 0x91, 0xef, 0x98, 0x7a,
+    0x33, 0x54, 0x0b, 0x43, 0xed, 0xcf, 0xac, 0x62,
+    0xe4, 0xb3, 0x1c, 0xa9, 0xc9, 0x08, 0xe8, 0x95,
+    0x80, 0xdf, 0x94, 0xfa, 0x75, 0x8f, 0x3f, 0xa6,
+    0x47, 0x07, 0xa7, 0xfc, 0xf3, 0x73, 0x17, 0xba,
+    0x83, 0x59, 0x3c, 0x19, 0xe6, 0x85, 0x4f, 0xa8,
+    0x68, 0x6b, 0x81, 0xb2, 0x71, 0x64, 0xda, 0x8b,
+    0xf8, 0xeb, 0x0f, 0x4b, 0x70, 0x56, 0x9d, 0x35,
+    0x1e, 0x24, 0x0e, 0x5e, 0x63, 0x58, 0xd1, 0xa2,
+    0x25, 0x22, 0x7c, 0x3b, 0x01, 0x21, 0x78, 0x87,
+    0xd4, 0x00, 0x46, 0x57, 0x9f, 0xd3, 0x27, 0x52,
+    0x4c, 0x36, 0x02, 0xe7, 0xa0, 0xc4, 0xc8, 0x9e,
+    0xea, 0xbf, 0x8a, 0xd2, 0x40, 0xc7, 0x38, 0xb5,
+    0xa3, 0xf7, 0xf2, 0xce, 0xf9, 0x61, 0x15, 0xa1,
+    0xe0, 0xae, 0x5d, 0xa4, 0x9b, 0x34, 0x1a, 0x55,
+    0xad, 0x93, 0x32, 0x30, 0xf5, 0x8c, 0xb1, 0xe3,
+    0x1d, 0xf6, 0xe2, 0x2e, 0x82, 0x66, 0xca, 0x60,
+    0xc0, 0x29, 0x23, 0xab, 0x0d, 0x53, 0x4e, 0x6f,
+    0xd5, 0xdb, 0x37, 0x45, 0xde, 0xfd, 0x8e, 0x2f,
+    0x03, 0xff, 0x6a, 0x72, 0x6d, 0x6c, 0x5b, 0x51,
+    0x8d, 0x1b, 0xaf, 0x92, 0xbb, 0xdd, 0xbc, 0x7f,
+    0x11, 0xd9, 0x5c, 0x41, 0x1f, 0x10, 0x5a, 0xd8,
+    0x0a, 0xc1, 0x31, 0x88, 0xa5, 0xcd, 0x7b, 0xbd,
+    0x2d, 0x74, 0xd0, 0x12, 0xb8, 0xe5, 0xb4, 0xb0,
+    0x89, 0x69, 0x97, 0x4a, 0x0c, 0x96, 0x77, 0x7e,
+    0x65, 0xb9, 0xf1, 0x09, 0xc5, 0x6e, 0xc6, 0x84,
+    0x18, 0xf0, 0x7d, 0xec, 0x3a, 0xdc, 0x4d, 0x20,
+    0x79, 0xee, 0x5f, 0x3e, 0xd7, 0xcb, 0x39, 0x48
+};
+
+// CK数组不变
+static const uint32_t CK[32] = {
+    0x00070e15, 0x1c232a31, 0x383f464d, 0x545b6269,
+    0x70777e85, 0x8c939aa1, 0xa8afb6bd, 0xc4cbd2d9,
+    0xe0e7eef5, 0xfc030a11, 0x181f262d, 0x343b4249,
+    0x50575e65, 0x6c737a81, 0x888f969d, 0xa4abb2b9,
+    0xc0c7ced5, 0xdce3eaf1, 0xf8ff060d, 0x141b2229,
+    0x30373e45, 0x4c535a61, 0x686f767d, 0x848b9299,
+    0xa0a7aeb5, 0xbcc3cad1, 0xd8dfe6ed, 0xf4fb0209,
+    0x10171e25, 0x2c333a41, 0x484f565d, 0x646b7279
+};
+
+uint32_t ROTL(uint32_t x, int n) {
+    return (x << n) | (x >> (32 - n));
+}
+
+// 传统 SM4 τ 函数（S-box替换）使用的普通实现
+uint32_t tau_traditional(uint32_t A) {
+    uint8_t a[4];
+    memcpy(a, &A, 4);
+    for (int i = 0; i < 4; ++i)
+        a[i] = SBOX[a[i]];
+    uint32_t B;
+    memcpy(&B, a, 4);
+    return B;
+}
+
+// 逆 ShiftRows 函数：撤销 AES 最后一轮指令的 ShiftRows 影响
+inline __m128i undo_shiftrows(__m128i data) {
+    alignas(16) uint8_t bytes[16];
+    _mm_storeu_si128((__m128i*)bytes, data);
+
+    uint8_t tmp[16];
+    // 第0行不变
+    tmp[0]  = bytes[0];
+    tmp[4]  = bytes[4];
+    tmp[8]  = bytes[8];
+    tmp[12] = bytes[12];
+
+    // 第1行逆向1字节循环右移
+    tmp[1]  = bytes[13];
+    tmp[5]  = bytes[1];
+    tmp[9]  = bytes[5];
+    tmp[13] = bytes[9];
+
+    // 第2行逆向2字节循环右移
+    tmp[2]  = bytes[10];
+    tmp[6]  = bytes[14];
+    tmp[10] = bytes[2];
+    tmp[14] = bytes[6];
+
+    // 第3行逆向3字节循环右移
+    tmp[3]  = bytes[7];
+    tmp[7]  = bytes[11];
+    tmp[11] = bytes[15];
+    tmp[15] = bytes[3];
+
+    return _mm_loadu_si128((__m128i*)tmp);
+}
+
+inline __m128i aesni_subbytes(__m128i input) {
+    __m128i zero = _mm_setzero_si128();
+    __m128i substituted = _mm_aesenclast_si128(input, zero);
+    return undo_shiftrows(substituted);  // 正确恢复 SM4 字节顺序
+}
+
+// 用 AES-NI 版本替换 tau 函数
+uint32_t tau_aesni(uint32_t A) {
+    __m128i data = _mm_cvtsi32_si128(A); // 把32位装入 xmm 低位，其他位0
+    data = _mm_shuffle_epi32(data, _MM_SHUFFLE(0,0,0,0)); // 扩展成四个一样的字节
+
+    __m128i substituted = aesni_subbytes(data);
+
+    // 提取最低32位作为结果
+    uint32_t result = _mm_cvtsi128_si32(substituted);
+    return result;
+}
+
+uint32_t L(uint32_t B) {
+    return B ^ ROTL(B, 2) ^ ROTL(B, 10) ^ ROTL(B, 18) ^ ROTL(B, 24);
+}
+
+uint32_t T_traditional(uint32_t x) {
+    return L(tau_traditional(x));
+}
+
+// 用 AES-NI 替换 tau 后的 T 函数
+uint32_t T_aesni(uint32_t x) {
+    return L(tau_aesni(x));
+}
+
+void SM4_KeyExpansion(const uint8_t key[16], uint32_t rk[32]) {
+    const uint32_t FK[4] = {0xa3b1bac6, 0x56aa3350, 0x677d9197, 0xb27022dc};
+    uint32_t K[36];
+    for (int i = 0; i < 4; ++i) {
+        K[i] = ((const uint32_t*)key)[i] ^ FK[i];
+    }
+    for (int i = 0; i < 32; ++i) {
+        uint32_t tmp = K[i + 1] ^ K[i + 2] ^ K[i + 3] ^ CK[i];
+        uint32_t t = T_traditional(tmp);  // 这里用传统实现
+        K[i + 4] = K[i] ^ t;
+        rk[i] = K[i + 4];
+    }
+}
+
+// 传统加密实现
+void SM4_Encrypt_BASE(const uint8_t in[16], uint8_t out[16], const uint32_t rk[32]) {
+    uint32_t X[36];
+    for (int i = 0; i < 4; ++i)
+        X[i] = ((const uint32_t*)in)[i];
+
+    for (int i = 0; i < 32; ++i) {
+        X[i + 4] = X[i] ^ T_traditional(X[i+1] ^ X[i+2] ^ X[i+3] ^ rk[i]);
+    }
+
+    uint32_t* Y = (uint32_t*)out;
+    Y[0] = X[35]; Y[1] = X[34]; Y[2] = X[33]; Y[3] = X[32];
+}
+
+// SIMD + AES-NI 优化加密实现示例（用 AES-NI 替代 tau）
+void SM4_Encrypt_AESNI_SIMD(const uint8_t in[16], uint8_t out[16], const uint32_t rk[32]) {
+    uint32_t X[36];
+    for (int i = 0; i < 4; ++i)
+        X[i] = ((const uint32_t*)in)[i];
+
+    for (int i = 0; i < 32; ++i) {
+        // 这里用 AES-NI 加速的 T 函数
+        X[i + 4] = X[i] ^ T_aesni(X[i+1] ^ X[i+2] ^ X[i+3] ^ rk[i]);
+    }
+
+    uint32_t* Y = (uint32_t*)out;
+    Y[0] = X[35]; Y[1] = X[34]; Y[2] = X[33]; Y[3] = X[32];
+}
+
+int main() {
+    uint8_t key[16] = {0xF3, 0xA7, 0xC9, 0xB2, 0x4D, 0x11, 0x86, 0xEF, 0x20, 0x94, 0xD3, 0x7A, 0x5B, 0xE0, 0xAC, 0x19};
+    uint8_t plain[16] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10};
+    uint8_t cipher[16];
+    uint32_t rk[32];
+    SM4_KeyExpansion(key, rk);
+
+    constexpr int ROUNDS = 100000;
+
+    auto start_base = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < ROUNDS; ++i)
+        SM4_Encrypt_BASE(plain, cipher, rk);
+    auto end_base = std::chrono::high_resolution_clock::now();
+
+    auto start_aesni = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < ROUNDS; ++i)
+        SM4_Encrypt_AESNI_SIMD(plain, cipher, rk);
+    auto end_aesni = std::chrono::high_resolution_clock::now();
+
+    std::cout << "Ciphertext: ";
+    for (int i = 0; i < 16; ++i) {
+        printf("%02x ", cipher[i]);
+    }
+    std::cout << std::endl;
+  
+    auto duration_base = std::chrono::duration_cast<std::chrono::microseconds>(end_base - start_base).count();
+    auto duration_aesni = std::chrono::duration_cast<std::chrono::microseconds>(end_aesni - start_aesni).count();
+
+    std::cout << "Base implementation: " << duration_base << " us for " << ROUNDS << " rounds\n";
+    std::cout << "AES-NI optimized  : " << duration_aesni << " us for " << ROUNDS << " rounds\n";
+
+    return 0;
+}
