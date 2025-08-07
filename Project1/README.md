@@ -81,7 +81,7 @@ $$
 
 **结果展示**：
 
-![image](https://github.com/uicciu/project_summary/blob/main/Project1/sm4T.png)
+![image](https://github.com/uicciu/project_summary/blob/main/Project1/assets/sm4T.png)
 
 **性能提升**：约 **2.5-3x**。
 
@@ -103,7 +103,7 @@ X[i + 4] = X[i] ^ T_aesni(X[i+1] ^ X[i+2] ^ X[i+3] ^ rk[i]);
 
 **结果展示**
 
-![image](https://github.com/uicciu/project_summary/blob/main/Project1/sm4AESIN.png)
+![image](https://github.com/uicciu/project_summary/blob/main/Project1/assets/sm4AESIN.png)
 
 **性能提升**：约 **5x**。
 
@@ -154,7 +154,7 @@ inline __m512i L(__m512i x) {
 
 **结果展示**
 
-![image](https://github.com/uicciu/project_summary/blob/main/Project1/vprold.png)
+![image](https://github.com/uicciu/project_summary/blob/main/Project1/assets/vprold.png)
 
 **性能提升**：约 **6-8x**。
 
@@ -236,7 +236,7 @@ __m128i result = _mm_clmulepi64_si128(Xi, H, 0x00); // GF(2^128)乘法
 
 **结果展示**
 
-![image](https://github.com/uicciu/project_summary/blob/main/Project1/GCM.png)
+![image](https://github.com/uicciu/project_summary/blob/main/Project1/assets/GCM.png)
 
 **性能提升**：在 **128-bit** 块并行模式下，GCM 认证加密可实现 **10Gbps** 以上 吞吐率。
 
