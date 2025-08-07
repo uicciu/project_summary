@@ -151,6 +151,10 @@ inline __m512i L(__m512i x) {
 }
 ```
 
+**结果展示**
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project1/vprold.png)
+
 **性能提升**：约 **6-8x**。
 
 ## 4. SM4-GCM 工作模式的软件优化
