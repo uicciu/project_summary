@@ -89,16 +89,20 @@ $$
 ### 3.2 基于 AES-NI 指令的优化
 AES-NI 提供 `_mm_aesenclast_si128`，用于实现 S-box。
 策略：
-1. 使用全 0 轮密钥，调用 AES-NI 完成 **S-box 替换**。
-2. 抵消 AES 的 ShiftRows 和 MixColumns。
-3. 每次 SIMD 并行处理 16 字节。
+1. 新增 __aesni_subbytes()__ 函数：用 AES-NI 指令 _mm_aesenclast_si128 执行 S-box（包含 AES 的 ShiftRows，需撤销）。
+2. tau_aesni() 用 AES-NI 代替普通 S-box。
+3. 新增 SM4_Encrypt_AESNI_SIMD()，用 AES-NI 优化的 T 函数替代传统实现。
+4. 额外实现 undo_shiftrows() 来完成逆 **ShiftRows**。
 
-示例代码：
+核心代码：
 
 ```c
-__m128i x = _mm_set_epi32(...);
-__m128i sbox_result = _mm_aesenclast_si128(x, _mm_setzero_si128());
+X[i + 4] = X[i] ^ T_aesni(X[i+1] ^ X[i+2] ^ X[i+3] ^ rk[i]);
 ```
+
+**结果展示**
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project1/sm4AESIN.png)
 
 **性能提升**：约 **5x**。
 
