@@ -37,55 +37,76 @@ static const uint8_t SBOX[256] = {
     0x18, 0xf0, 0x7d, 0xec, 0x3a, 0xdc, 0x4d, 0x20, 0x79, 0xee, 0x5f, 0x3e, 0xd7, 0xcb, 0x39, 0x48
 };
 
-uint32_t tau(uint32_t A) {
-    uint8_t a[4];
-    memcpy(a, &A, 4);
-    for (int i = 0; i < 4; ++i) a[i] = SBOX[a[i]];
-    uint32_t B;
-    memcpy(&B, a, 4);
-    return B;
-}
-
-// AVX2 based L transformation using VPROLD
-uint32_t L_vprold(uint32_t B) {
-    __m128i v = _mm_set1_epi32(B);
-    __m128i r2  = _mm_rol_epi32(v, 2);
-    __m128i r10 = _mm_rol_epi32(v, 10);
-    __m128i r18 = _mm_rol_epi32(v, 18);
-    __m128i r24 = _mm_rol_epi32(v, 24);
-    __m128i res = _mm_xor_si128(v, _mm_xor_si128(r2, _mm_xor_si128(r10, _mm_xor_si128(r18, r24))));
-    return _mm_extract_epi32(res, 0);
-}
-
-uint32_t T(uint32_t x) {
-    return L_vprold(tau(x));
-}
-
-void SM4_KeyExpansion(const uint8_t key[16], uint32_t rk[32]) {
-    const uint32_t FK[4] = {0xa3b1bac6, 0x56aa3350, 0x677d9197, 0xb27022dc};
-    uint32_t K[36];
-    for (int i = 0; i < 4; ++i) {
-        K[i] = ((uint32_t*)key)[i] ^ FK[i];
+inline __m512i tau(__m512i x) {
+    alignas(64) uint32_t input[16];
+    _mm512_store_epi32(input, x);
+    for (int i = 0; i < 16; ++i) {
+        uint8_t *b = reinterpret_cast<uint8_t*>(&input[i]);
+        for (int j = 0; j < 4; ++j)
+            b[j] = SBOX[b[j]];
     }
+    return _mm512_load_epi32(input);
+}
+
+inline __m512i L(__m512i x) {
+    auto r2  = _mm512_rol_epi32(x, 2);
+    auto r10 = _mm512_rol_epi32(x, 10);
+    auto r18 = _mm512_rol_epi32(x, 18);
+    auto r24 = _mm512_rol_epi32(x, 24);
+    return _mm512_xor_si512(x,
+           _mm512_xor_si512(r2,
+           _mm512_xor_si512(r10,
+           _mm512_xor_si512(r18, r24))));
+}
+
+inline __m512i T(__m512i x) {
+    return L(tau(x));
+}
+
+// ------------------ 扩展密钥（单密钥） ------------------
+void SM4_KeyExpansion(const uint8_t key[16], uint32_t rk[32]) {
+    uint32_t K[36];
+    for (int i = 0; i < 4; ++i)
+        K[i] = ((uint32_t*)key)[i] ^ FK[i];
+
     for (int i = 0; i < 32; ++i) {
         uint32_t tmp = K[i + 1] ^ K[i + 2] ^ K[i + 3] ^ CK[i];
-        uint32_t t = T(tmp);
-        K[i + 4] = K[i] ^ t;
+        uint32_t B = tmp;
+        uint8_t* b = (uint8_t*)&B;
+        for (int j = 0; j < 4; ++j)
+            b[j] = SBOX[b[j]];
+        uint32_t L = B ^ ROTL(B, 13) ^ ROTL(B, 23);
+        K[i + 4] = K[i] ^ L;
         rk[i] = K[i + 4];
     }
 }
 
-void SM4_Encrypt_SIMD(const uint8_t in[16], uint8_t out[16], const uint32_t rk[32]) {
-    __m128i x = _mm_loadu_si128((__m128i*)in);
-    uint32_t* X = (uint32_t*)&x;
-    uint32_t tmp[36];
-    tmp[0] = X[0]; tmp[1] = X[1]; tmp[2] = X[2]; tmp[3] = X[3];
+// ------------------ 并行加密 16 blocks ------------------
+void SM4_Encrypt_16Blocks(const uint8_t in[16 * 16], uint8_t out[16 * 16], const uint32_t rk[32]) {
+    __m512i X0, X1, X2, X3;
 
-    for (int i = 0; i < 32; ++i)
-        tmp[i + 4] = tmp[i] ^ T(tmp[i + 1] ^ tmp[i + 2] ^ tmp[i + 3] ^ rk[i]);
+    X0 = _mm512_loadu_epi32(in + 0 * 4);
+    X1 = _mm512_loadu_epi32(in + 1 * 4);
+    X2 = _mm512_loadu_epi32(in + 2 * 4);
+    X3 = _mm512_loadu_epi32(in + 3 * 4);
 
-    uint32_t result[4] = {tmp[35], tmp[34], tmp[33], tmp[32]};
-    _mm_storeu_si128((__m128i*)out, _mm_loadu_si128((__m128i*)result));
+    for (int i = 0; i < 32; ++i) {
+        __m512i rk_i = _mm512_set1_epi32(rk[i]);
+        __m512i tmp = _mm512_xor_epi32(X1, X2);
+        tmp = _mm512_xor_epi32(tmp, X3);
+        tmp = _mm512_xor_epi32(tmp, rk_i);
+        __m512i t = T(tmp);
+        __m512i newX = _mm512_xor_epi32(X0, t);
+        X0 = X1;
+        X1 = X2;
+        X2 = X3;
+        X3 = newX;
+    }
+
+    _mm512_storeu_epi32(out + 0 * 4, X3);
+    _mm512_storeu_epi32(out + 1 * 4, X2);
+    _mm512_storeu_epi32(out + 2 * 4, X1);
+    _mm512_storeu_epi32(out + 3 * 4, X0);
 }
 
 int main() {
@@ -113,3 +134,4 @@ int main() {
 
     return 0;
 }
+
