@@ -72,25 +72,18 @@ $$
 ```
 Project3/
 │
-├── circuits/
+├── src/
 │   ├── poseidon2.circom        # Poseidon2 电路实现
 │   ├── poseidon2_test.circom   # 测试电路
 │
 ├── test/
-│   └── poseidon2_test.js       # 使用 snarkjs 测试电路
+|   ├── input.json                  # 示例输入文件
+│   └── poseidon2_test.json       # 使用 snarkjs 测试电路
 │
-├── build/
-│   ├── poseidon2.r1cs          # 编译后的电路文件
-│   ├── poseidon2.wasm          # 电路生成的 WASM
-│   ├── poseidon2_0000.zkey     # 初始 ZKey
-│   ├── poseidon2_final.zkey    # 最终 ZKey
-│   └── verification_key.json   # 验证密钥
-│
-├── input.json                  # 示例输入文件
-├── proof.json                  # Groth16 证明文件
-├── public.json                 # 公共输入文件
-├── README.md                   # 项目说明
-└── package.json
+├── generate_proof.sh                 
+├── test_poseidon2.sh               
+└── README.md                   # 项目说明
+
 ```
 
 ---
@@ -137,9 +130,9 @@ $$
 ---
 
 ## 测试
-使用 Node.js 测试：
+使用 bash 测试：
 ```bash
-node test/poseidon2_test.js
+bash test_poseidon2.sh
 ```
 
 ---
