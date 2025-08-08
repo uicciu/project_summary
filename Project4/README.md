@@ -291,11 +291,10 @@ sm3-project/
 
 假设服务器验证 `token = SM3(secret || msg)`： 我们截获 `digest = SM3(secret || msg)`，并猜测 `secret` 长度（例如 16 字节）。
 
-![image](https://github.com/uicciu/project_summary/edit/main/Project4/assets/Length_extension_attack.png)
+![image](https://github.com/uicciu/project_summary/blob/main/Project4/assets/Length_extension_attack.png)
 
 ### 9.2 Merkle 树存在性证明结果
-
-![image](https://github.com/uicciu/project_summary/edit/main/Project4/assets/merkle.png)
+![image](https://github.com/uicciu/project_summary/blob/main/Project4/assets/merkle.png)
 
 * Leaf hashes：对应每个叶子数据字符串的 SM3 哈希值。
 
