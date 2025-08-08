@@ -9,7 +9,7 @@
 - [1. 项目概览](#1-项目概览)
 - [2. 理论背景](#2-理论背景)
   - [2.1 数字水印分类](#21-数字水印分类)
-  - [2.2 DWT（离散小波变换）简介](#22-dwt离散小波变换简介)
+  - [2.2 DWT简介](#22-dwt离散小波变换简介)
   - [2.3 基于 DWT 的水印嵌入思想](#23-基于-dwt-的水印嵌入思想)
 - [3. 数学模型](#3-数学模型)
   - [3.1 图像 DWT 分解](#31-图像-dwt-分解)
@@ -30,9 +30,9 @@
   - [7.1 攻击类型与参数](#71-攻击类型与参数)
   - [7.2 自动化鲁棒性测试脚本](#72-自动化鲁棒性测试脚本)
   - [7.3 指标统计与可视化](#73-指标统计与可视化)
-- [8. 实验示例与结果模板](#8-实验示例与结果模板)
-  - [8.1 示例实验配置](#81-示例实验配置)
-  - [8.2 结果记录表格](#82-结果记录表格模板)
+- [8. 实验结果](#8-实验结果)
+  - [8.1 实验配置](#81-实验配置)
+
  
 
 ---
@@ -59,11 +59,11 @@
 
 原图：
 
-![image]()
+![image](https://github.com/uicciu/project_summary/blob/main/Project2/assets/lena_fake.png)
 
 水印：
 
-![image]()
+![image](https://github.com/uicciu/project_summary/blob/main/Project2/assets/watermark.png)
 
 
 ---
@@ -195,10 +195,6 @@ $$
 
 用于衡量提取水印与原水印相似度：
 
-$$
-\text{NC}(W, \hat{W}) = \frac{\sum_{i,j} W_{ij} \hat{W}_{ij}}{\sqrt{\sum_{i,j} W_{ij}^2} \times \sqrt{\sum_{i,j} \hat{W}_{ij}^2}}
-$$
-
 
 #### 比特错误率 (BER) (适用于二值水印)
 
@@ -239,25 +235,23 @@ $$
 pip install opencv-python numpy pywavelets scikit-image matplotlib pandas
 ```
 
+> 本项目在 kaggle网站编辑
+
 ### 5.2 目录结构建议
 
 ```
-ImageWatermarking/
-├── data/
-│   ├── host/              # 宿主图像
-│   ├── watermark/         # 水印图像(logo/ID)
-│   └── attacks/           # 生成的攻击样本
-├── results/
-│   ├── extracted/         # 提取出的水印
-│   ├── metrics.csv        # 指标记录
-│   └── plots/             # 可视化图
+Project2/
+├── assets/
+│   ├── lena_fake.png            # 宿主图像
+│   ├── watermark.png        # 水印图像(logo/ID)
+│   ├── watermarked.png          # 生成的攻击样本
+|   └── wm_extract.png
 ├── src/
 │   ├── embed.py           # 水印嵌入
 │   ├── extract.py         # 水印提取
 │   ├── attacks.py         # 图像攻击合集
 │   ├── metrics.py         # PSNR/NC/BER/SSIM
-│   ├── batch_eval.py      # 批量鲁棒性测试
-│   └── utils.py           # 工具函数
+│   └── batch_eval.py      # 批量鲁棒性测试
 └── README.md
 ```
 
@@ -321,6 +315,10 @@ def embed_watermark(image, watermark, wave='haar', level=1, band='LL', alpha=0.0
     return np.clip(watermarked, 0, 255).astype(np.uint8)
 ```
 
+**结果**：
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project2/assets/watermarked.png)
+
 ---
 
 ### 6.2 基础 DWT 水印提取 
@@ -348,6 +346,10 @@ def extract_watermark(original, watermarked, wave='haar', level=1, band='LL', al
     wm_est = (wm_est * 255).astype(np.uint8)
     return wm_est
 ```
+
+**结果**:
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project2/assets/wm_extracted.png)
 
 ---
 
@@ -446,9 +448,9 @@ def plot_nc(df, title='NC vs Attack'):
 
 ---
 
-## 8. 实验示例与结果模板
+## 8. 实验结果
 
-### 8.1 示例实验配置
+### 8.1 实验配置
 
 ```yaml
 host_image: data/host/lena.png
@@ -469,19 +471,6 @@ attacks:
 
 ---
 
-### 8.2 结果记录表格
-
-| 攻击       | PSNR(dB) | SSIM | NC    | BER   | 可识别(阈值=0.9)  |
-| -------- | -------- | ---- | ----- | ----- | ------------ |
-| none     | 45.2     | 0.99 | 0.999 | 0.000 | √            |
-| flip\_h  | 44.0     | 0.98 | 0.995 | 0.002 | √           |
-| crop\_10 | 41.8     | 0.95 | 0.978 | 0.010 |  √           |
-| jpeg\_40 | 38.5     | 0.89 | 0.942 | 0.030 |  |
-| jpeg\_20 | 34.2     | 0.75 | 0.702 | 0.180 |  ×          |
-
-> **可识别规则示例：** 当 NC ≥ 0.90 或 BER ≤ 0.05 判定水印成功。
-
----
 
 
 ## 10. 附录：公式合集
@@ -496,7 +485,7 @@ attacks:
 
 **PSNR：**  $10\log_{10}(\text{MAX}^2/\text{MSE})$
 
-**NC：**  $\frac{\sum W\hat{W}}{\sqrt{\sum W^2\sum \hat{W}^2}}%
+**NC：**  $\frac{\sum W\hat{W}}{\sqrt{\sum W^2\sum \hat{W}^2}}$
 
 **BER：**  错误比特占比。
 
