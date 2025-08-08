@@ -22,24 +22,13 @@
   - [4.4 常量、布尔函数与置换](#44-常量布尔函数与置换)
   - [4.5 哈希总体流程](#45-哈希总体流程)
 - [5. 项目结构](#5-项目结构)
-- [6. 接口说明](#6-接口说明)
-  - [6.1 C 语言接口](#61-c-语言接口)
-  - [6.2 Python 参考封装](#62-python-参考封装)
-  - [6.3 命令行工具 sm3cli](#63-命令行工具-sm3cli)
-- [7. 使用说明](#7-使用说明)
-  - [7.1 构建与安装](#71-构建与安装)
-  - [7.2 计算文件摘要](#72-计算文件摘要)
-  - [7.3 批量哈希](#73-批量哈希)
-  - [7.4 与 OpenSSL(SM3) 或参考实现对比测试](#74-与-opensslsm3-或参考实现对比测试)
-- [8. 性能测试](#8-性能测试)
-  - [8.1 测试维度与指标](#81-测试维度与指标)
-  - [8.2 基准测试脚本](#82-基准测试脚本)
-  - [8.3 SIMD/多线程测试注意事项](#83-simd多线程测试注意事项)
-- [9. 实验示例](#9-实验示例)
-  - [9.1 长度扩展攻击示例](#91-长度扩展攻击示例)
-  - [9.2 Merkle 树存在性证明示例](#92-merkle-树存在性证明示例)
-  - [9.3 Merkle 树不存在性证明示例](#93-merkle-树不存在性证明示例)
-- [10. 参考文献](#10-参考文献)
+- [6. 性能测试](#8-性能测试)
+  - [6.1 测试维度与指标](#81-测试维度与指标)
+  - [6.2 SIMD/多线程测试注意事项](#83-simd多线程测试注意事项)
+- [7. 实验示例](#9-实验示例)
+  - [7.1 长度扩展攻击结果](#91-长度扩展攻击结果)
+  - [7.2 Merkle 树存在性证明结果](#92-merkle-树存在性证明结果)
+- [8. 参考文献](#10-参考文献)
 
 ---
 
@@ -273,163 +262,22 @@ $$
 sm3-project/
 ├── include/
 │   └── sm3.h                  # 对外 API 头文件
+├── assets/
+|   ├── Length_extension_attack.png
+|   └── merkle.png
 ├── src/
-│   ├── sm3.c                  # 基础参考实现（可读性版本）
-│   ├── sm3_opt.c              # 优化版（循环展开 / 内联 / 查表）
-│   ├── sm3_avx2.c             # AVX2 SIMD 并行实现（可选）
-│   ├── sm3_neon.c             # ARM NEON 实现（可选）
-│   └── sm3_utils.c            # 字节序、工具函数
-├── python/
-│   ├── sm3.py                 # 纯 Python 参考 & ctypes 绑定
-│   └── length_extension_attack.py
-├── merkle/
-│   ├── merkle_sm3.py          # Merkle 树实现
-│   ├── merkle_cli.py          # CLI 工具
-│   └── proofs/                # 示例证明文件
-├── tests/
-│   ├── test_vectors.c         # 与官方/参考向量对比
-│   ├── test_length_ext.py     # 长度扩展验证
-│   ├── test_merkle.py         # Merkle 存在性/不存在性
-│   └── data/                  # 测试输入样例
-├── bench/
-│   ├── bench_sm3.c            # 性能基准
-│   └── bench.py               # 批量性能测试脚本
-├── cmake/
-│   └── ...
-├── CMakeLists.txt
-├── Makefile
-├── README.md                  # 本文档
-└── LICENSE
+│   ├── sm3.c                  
+│   ├── merkle.cpp            
+│   └── sm3_length_extension_attack.cpp
+└──README.md                  # 本文档
 ```
 
 ---
 
-## 6. 接口说明
 
-### 6.1 C 语言接口
+## 6. 性能测试
 
-#### 上下文结构体
-
-```c
-#include <stdint.h>
-#include <stddef.h>
-
-#define SM3_DIGEST_LENGTH 32
-
-typedef struct {
-    uint32_t state[8];   // 当前链值 V_i
-    uint64_t length;     // 已处理比特长度（或字节长度 * 8）
-    uint8_t  buffer[64]; // 分组缓冲
-    size_t   buf_used;   // 缓冲已用字节
-} sm3_ctx;
-```
-
-#### 初始化
-
-```c
-void sm3_init(sm3_ctx *ctx);
-```
-
-#### 增量更新
-
-```c
-void sm3_update(sm3_ctx *ctx, const uint8_t *data, size_t len);
-```
-
-#### 完成并输出摘要
-
-```c
-void sm3_final(sm3_ctx *ctx, uint8_t out[SM3_DIGEST_LENGTH]);
-```
-
-#### 一次性 API
-
-```c
-void sm3(const uint8_t *msg, size_t len, uint8_t out[SM3_DIGEST_LENGTH]);
-```
-
-### 6.2 Python 参考封装
-
-示例：
-
-```python
-import sm3
-
-digest = sm3.hash(b"hello world")
-print(digest.hex())
-```
-
-或流式：
-
-```python
-h = sm3.SM3()
-h.update(b"hello ")
-h.update(b"world")
-print(h.digest().hex())
-```
-
-### 6.3 命令行工具 sm3cli
-
-```
-$ sm3cli -h
-Usage: sm3cli [options] <file>...
-
-Options:
-  -s <string>   Hash literal string
-  -x            Output lowercase hex (default)
-  -X            Output uppercase hex
-  -b            Benchmark mode
-  --impl=<ref|opt|avx2> Select implementation
-```
-
----
-
-## 7. 使用说明
-
-### 7.1 构建与安装
-
-#### 使用 CMake
-
-```bash
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j$(nproc)
-make install  # 可选
-```
-
-#### 使用 Makefile
-
-```bash
-make CC=gcc CFLAGS="-O3 -march=native"
-```
-
-### 7.2 计算文件摘要
-
-```bash
-./sm3cli data/message.txt
-```
-
-
-### 7.3 批量哈希
-
-```bash
-find ./data -type f -print0 | xargs -0 ./sm3cli > digests.txt
-```
-
-### 7.4 与 OpenSSL(SM3) 
-
-若系统 OpenSSL 支持 `sm3` 算法，可比对：
-
-```bash
-echo -n "abc" | openssl dgst -sm3
-./sm3cli -s abc
-```
-
----
-
-## 8. 性能测试
-
-### 8.1 测试维度与指标
+### 6.1 测试维度与指标
 
 - **吞吐量**：MB/s。
 - **每字节周期数 (cycles/byte)**：使用 `rdtsc` 或 `perf`。
@@ -437,25 +285,7 @@ echo -n "abc" | openssl dgst -sm3
 - **分组长度影响**：短消息 vs 长消息。
 - **实现对比**：`ref` vs `opt` vs `avx2` vs `neon`。
 
-### 8.2 基准测试脚本
-
-示例（Python）：
-
-```python
-import os, time, random
-import sm3
-
-sizes = [1, 8, 64, 256, 1024, 4096, 1<<20]
-for s in sizes:
-    data = os.urandom(s)
-    t0 = time.time()
-    for _ in range(1000):
-        sm3.hash(data)
-    t1 = time.time()
-    print(s, (t1-t0))
-```
-
-### 8.3 SIMD/多线程测试注意事项
+### 6.2 SIMD/多线程测试注意事项
 
 - 固定 CPU 频率（禁用动态频率变动）。
 - 绑定线程亲和性（`taskset`）。
@@ -464,55 +294,27 @@ for s in sizes:
 
 ---
 
-## 9. 实验示例
+## 7. 实验结果
 
-### 9.1 长度扩展攻击示例
+### 9.1 长度扩展攻击结果
 
 假设服务器验证 `token = SM3(secret || msg)`： 我们截获 `digest = SM3(secret || msg)`，并猜测 `secret` 长度（例如 16 字节）。
 
-Python 攻击示例：
+![image](https://github.com/uicciu/project_summary/edit/main/Project4/assets/Length_extension_attack.png)
 
-```python
-from length_extension_attack import sm3_lenext_attack
+### 9.2 Merkle 树存在性证明结果
 
-orig_digest_hex = "66c7f0f462eeedd9d1f2d46bdc10e4e2..."  # 截获
-orig_len = 16 + len(b"user=alice")
-ext_msg = b"&admin=true"
-new_digest, forged_input = sm3_lenext_attack(orig_digest_hex, orig_len, ext_msg)
-```
+![image](https://github.com/uicciu/project_summary/edit/main/Project4/assets/merkle.png)
 
-验证：
+* Leaf hashes：对应每个叶子数据字符串的 SM3 哈希值。
 
-```python
-import sm3
-assert sm3.hash(forged_input).hex() == new_digest.hex()
-```
+* Merkle root hash：所有叶子节点通过二叉哈希树合并计算得到的根哈希。
 
-### 9.2 Merkle 树存在性证明示例
+* Proof path hashes：验证某个叶子节点（这里是 "cherry"）的存在性，提供从叶子到根的兄弟节点哈希路径。
 
-```python
-from merkle_sm3 import build_merkle, merkle_proof, verify_merkle_proof
+* Verification result：使用该路径计算最终哈希，与根哈希一致，验证成功。
 
-leaves = [b"L0", b"L1", b"L2", b"L3"]
-root, nodes = build_merkle(leaves)
-path = merkle_proof(nodes, idx=2)
-assert verify_merkle_proof(root, leaves[2], path, idx=2)
-```
 
-### 9.3 Merkle 树不存在性证明示例
-
-若叶子排序，可证明值 `X` 位于 `L_i` 与 `L_{i+1}` 之间：
-
-```python
-from merkle_sm3 import merkle_non_inclusion
-
-proof = merkle_non_inclusion(sorted_leaves, X)
-# proof: (left_leaf, right_leaf, left_path, right_path)
-```
-
-验证时同时校验左右邻区间路径与排序关系。
-
----
 
 ## 10. 参考文献
 
