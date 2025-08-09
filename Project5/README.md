@@ -97,7 +97,7 @@ $$
 ## PoC 验证与伪造实验
 - **`poc_k_reuse.py`**：复用相同随机数恢复私钥。
 - **`poc_missing_z.py`**：未绑定 Z 导致的签名跨身份攻击。
-- **`fake_satoshi_signature.py`**：构造可验证通过的“中本聪”伪造签名。
+- **`fake_satoshi_signature.py`**：构造可验证通过的伪造签名。
 
 ---
 
