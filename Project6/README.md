@@ -106,7 +106,7 @@ project_root/
 python -m unittest tests/test_ddh_psi.py
 ```
 
-![image]()
+![image](https://github.com/uicciu/project_summary/blob/main/Project6/assets/result.png)
 
 ## 安全性分析
 
