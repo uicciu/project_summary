@@ -95,10 +95,21 @@ $$
 ## 软件实现与代码说明
 项目主要代码文件：
 - **`sm2.py`**：SM2 核心实现（密钥生成、签名、验签）。
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project5/assets/sm2.png)
+
 - **`demo_basic.py`**：演示签名与验签。
 - **`poc_k_reuse.py`**：k 重复使用攻击复现。
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project5/assets/poc_k_reuse.png)
+  
 - **`poc_missing_z.py`**：Z 缺失漏洞复现。
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project5/assets/poc_missing_z.png)
+
 - **`fake_satoshi_signature.py`**：伪造签名实验。
+
+![image](https://github.com/uicciu/project_summary/blob/main/Project5/assets/fake_satoshi_signature.png)
 
 ---
 
