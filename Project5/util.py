@@ -1,55 +1,47 @@
-# utils.py
-# SM2 椭圆曲线基础工具函数
+# src/utils.py
+# Utility functions: hashing, Z calculation, conversions
 
-p = 0xFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFF
-a = 0xFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFC
-b = 0x28E9FA9E9D9F5E344D5AEF7FBFFFFFFFEFFFFFFFDCABAE9CF6B0C8D4EE9BBFD87
+import hashlib
+from typing import Tuple
 
-def inverse_mod(k, p):
-    """计算 k 关于模 p 的逆元"""
-    if k == 0:
-        raise ZeroDivisionError('division by zero')
-    return pow(k, -1, p)
+try:
+    from gmssl import sm3
+    HAS_SM3 = True
+except Exception:
+    HAS_SM3 = False
 
-def is_on_curve(P):
-    """判断点 P=(x,y) 是否在椭圆曲线上"""
-    if P is None:
-        return True
-    x, y = P
-    return (y * y - (x * x * x + a * x + b)) % p == 0
+from .ecc import a, b, Gx, Gy
 
-def point_add(P, Q):
-    """椭圆曲线加法"""
-    if P is None:
-        return Q
-    if Q is None:
-        return P
-
-    x1, y1 = P
-    x2, y2 = Q
-
-    if x1 == x2 and y1 != y2:
-        return None
-
-    if P == Q:
-        lam = (3 * x1 * x1 + a) * inverse_mod(2 * y1, p) % p
+def hash_msg(msg: bytes) -> bytes:
+    """
+    Compute hash. Prefer SM3 if gmssl installed; otherwise fallback to SHA-256.
+    Returns raw bytes.
+    """
+    if HAS_SM3:
+        # gmssl.sm3.sm3_hash accepts a list of byte values and returns hex string
+        return bytes.fromhex(sm3.sm3_hash(list(msg)))
     else:
-        lam = (y2 - y1) * inverse_mod(x2 - x1, p) % p
+        return hashlib.sha256(msg).digest()
 
-    x3 = (lam * lam - x1 - x2) % p
-    y3 = (lam * (x1 - x3) - y1) % p
 
-    return (x3, y3)
+def int_to_bytes(x: int, length: int) -> bytes:
+    return x.to_bytes(length, byteorder='big')
 
-def scalar_mult(k, P):
-    """标量乘法 k*P"""
-    R = None
-    addend = P
 
-    while k > 0:
-        if k & 1:
-            R = point_add(R, addend)
-        addend = point_add(addend, addend)
-        k >>= 1
+def bytes_to_int(b: bytes) -> int:
+    return int.from_bytes(b, byteorder='big')
 
-    return R
+
+def calc_z(ID: bytes, Px: int, Py: int) -> bytes:
+    """
+    Calculate Z per SM2:
+    Z = H(ENTL || ID || a || b || Gx || Gy || Px || Py)
+    ENTL is ID length in bits, 2 bytes big-endian.
+    """
+    entl = (len(ID) * 8).to_bytes(2, 'big')
+    data = bytearray()
+    data += entl
+    data += ID
+    for val in (a, b, Gx, Gy, Px, Py):
+        data += int_to_bytes(val, 32)
+    return hash_msg(bytes(data))
